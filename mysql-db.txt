@@ -1,0 +1,28 @@
+CREATE TABLE users (
+    id bigint(20) auto_increment primary key,
+    email varchar(255) default null,
+    password varchar(255) default null,
+    created_at timestamp default current_timestamp,
+    updated_at timestamp default current_timestamp on update current_timestamp
+);
+
+CREATE TABLE chats (
+    user_id bigint(20),
+    recipient_id bigint(20),
+    message longtext default null,
+    created_at timestamp default current_timestamp,
+    updated_at timestamp default current_timestamp on update current_timestamp
+);
+
+ALTER TABLE users add column name varchar(100) default null after email;
+ALTER TABLE users add column avatar longtext default null after name;
+
+INSERT INTO users (email, password) VALUES ('sidtheitguy@gmail.com', '123456');
+INSERT INTO users (name, email, password) VALUES 
+('Alex', 'alex@gmail.com', '123456'), 
+('Luis', 'luis@gmail.com', '123456'),
+('Richard','richard@gmail.com', '123456'),
+('Linda', 'linda@gmail.com', '123456'),
+('Sylvester', 'sylvester@gmail.com', '123456'),
+('Louis', 'louis@gmail.com', '123456'),
+('Mark','mark@gmail.com', '123456');
