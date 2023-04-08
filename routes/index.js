@@ -43,7 +43,20 @@ async function getChats(userId) {
 async function getSidebarUsers(userId) {
   return await new Promise((resolve, reject) => {
     const userQuery = `select * from users where id != ?`;
-    const params = [req.session.user_id];
+    const params = [userId];
+    database.query(userQuery, params, (err, response) => {
+      if (err) {
+        return reject(err)
+      }
+      return resolve(response)
+    });
+  });
+}
+
+async function getUserAccount(userId) {
+  return await new Promise((resolve, reject) => {
+    const userQuery = `select * from users where id = ?`;
+    const params = [userId];
     database.query(userQuery, params, (err, response) => {
       if (err) {
         return reject(err)
@@ -71,6 +84,7 @@ router.get('/', checkAuth, async function(req, res) {
   var result = new Array();
   var usersArr = new Array();
   var account = null;
+  var recipientAccount = null;
   var chatHistory = null;
   const userId = req.session.user_id;
     
@@ -86,7 +100,9 @@ router.get('/', checkAuth, async function(req, res) {
   }
   res.render(pagesPrefix + 'chat', {
     'sidebar': result, 
-    'usersArr': usersArr
+    'usersArr': usersArr,
+    'chatHistory': chatHistory,
+    'recipientAccount': recipientAccount
   });
 });
 

@@ -28,3 +28,8 @@ INSERT INTO users (name, email, password) VALUES
 ('Mark','mark@gmail.com', '123456');
 
 ALTER TABLE users add column last_message bigint(20) unsigned default null;
+
+ALTER TABLE users 
+    add column default_channel VARCHAR(100) default null after password,
+    add column last_login TIMESTAMP null default null,
+    add column last_logout TIMESTAMP null default null;
