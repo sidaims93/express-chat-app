@@ -27,40 +27,67 @@ function checkNoAuth(req, res, next) {
   }
 }
 
+async function getChats(userId) {
+  return await new Promise((resolve, reject) => {
+    const sidebarQuery = `select distinct(recipient_id), u.email, u.id, u.name, u.avatar from chats c join users u on c.recipient_id = u.id where c.user_id = ?`;
+    const params = [userId];
+    database.query(sidebarQuery, params, (err, response) => {
+      if (err) {
+        return reject(err)
+      }
+      return resolve(response)
+    })
+  });
+}
+
+async function getSidebarUsers(userId) {
+  return await new Promise((resolve, reject) => {
+    const userQuery = `select * from users where id != ?`;
+    const params = [req.session.user_id];
+    database.query(userQuery, params, (err, response) => {
+      if (err) {
+        return reject(err)
+      }
+      return resolve(response)
+    });
+  });
+}
+
+async function getChatHistory(userId, recipientId) {
+  return await new Promise((resolve, reject) => {
+    const userQuery = `select * from chats where user_id = ? and recipient_id = ?`;
+    const params = [userId, recipientId];
+    database.query(userQuery, params, (err, response) => {
+      if (err) {
+        return reject(err)
+      }
+      return resolve(response)
+    });
+  });
+}
+
 /* GET home page. */
 router.get('/', checkAuth, async function(req, res) {
   var result = new Array();
   var usersArr = new Array();
+  var account = null;
+  var chatHistory = null;
+  const userId = req.session.user_id;
     
   try {
-    result = await new Promise((resolve, reject) => {
-      const sidebarQuery = `select distinct(recipient_id), u.email, u.id, u.name, u.avatar from chats c join users u on c.recipient_id = u.id where c.user_id = ?`;
-      const params = [req.session.user_id];
-      database.query(sidebarQuery, params, (err, response) => {
-        if (err) {
-          return reject(err)
-        }
-        return resolve(response)
-      })
-    });
-
-    usersArr = await new Promise((resolve, reject) => {
-      const userQuery = `select * from users where id != ?`;
-      const params = [req.session.user_id];
-      database.query(userQuery, params, (err, response) => {
-        if (err) {
-          return reject(err)
-        }
-        return resolve(response)
-      });
-    });
-  
+    account = await getUserAccount(userId);
+    recipientAccount = await getUserAccount(account.last_message);
+    usersArr = await getSidebarUsers(userId);
+    chatHistory = await getChatHistory(account.id, account.last_message);
   } catch(err) {
     result = new Array();
     usersArr = new Array();
     console.log(err.message);
   }
-  res.render(pagesPrefix + 'chat', {'sidebar': result, 'usersArr': usersArr});
+  res.render(pagesPrefix + 'chat', {
+    'sidebar': result, 
+    'usersArr': usersArr
+  });
 });
 
 router.get('/start_chat/:id', checkAuth, async function (req, res) {

@@ -26,3 +26,5 @@ INSERT INTO users (name, email, password) VALUES
 ('Sylvester', 'sylvester@gmail.com', '123456'),
 ('Louis', 'louis@gmail.com', '123456'),
 ('Mark','mark@gmail.com', '123456');
+
+ALTER TABLE users add column last_message bigint(20) unsigned default null;
