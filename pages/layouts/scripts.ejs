@@ -1,0 +1,24 @@
+<script src="https://cdn.socket.io/4.0.1/socket.io.min.js?v=<%= Date.now() %>"></script>
+<script>
+    let socket = io('http://localhost:3000');
+
+    console.log(socket);
+
+    var user_id = document.getElementById('user_id').value;
+    var default_channel = document.getElementById('default_channel').value; //App-wide channel
+    var receive_message_channel = document.getElementById('receive_message_channel').value; //For receiving real-time notifications of incoming messages
+
+    socket.on(default_channel, (message) => {
+        $('#main').prepend(`<br><span class="badge bg-primary pb-0 mb-4"><h1>`+message+`</h1></span>`);
+        console.log(message);
+    });
+
+    socket.on('ReceiveMessage', (obj) => {
+        console.log('receiveMessage');
+        console.log(obj);
+    });
+</script>
+<script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

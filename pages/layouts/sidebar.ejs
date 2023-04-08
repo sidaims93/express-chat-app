@@ -1,0 +1,19 @@
+<div id="plist" class="people-list">
+    <div class="input-group">
+        <div class="input-group-prepend">
+            <span class="input-group-text"><i class="fa fa-search"></i></span>
+        </div>
+        <input type="text" class="form-control" placeholder="Search...">
+    </div>
+    <ul class="list-unstyled chat-list mt-2 mb-0">
+        <% for(var i in sidebar) { %>
+        <li class="clearfix">
+            <img src="<%= sidebar[i].avatar %>" alt="avatar">
+            <div class="about">
+                <div class="name"><%= sidebar[i].name %></div>
+                <div class="status"> <i class="fa fa-circle offline"></i></div>
+            </div>
+        </li>
+        <% } %>
+    </ul>
+</div>

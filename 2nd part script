@@ -1,0 +1,27 @@
+
+
+
+---------------------------------------------------------
+******************* Content Index ***********************
+---------------------------------------------------------
+
+1. Setup SocketIO with the server instance to listen to real-time events.
+
+2. When User logs in 
+    - mark last_login in user record
+    - subscribe to two channels -
+        - one for listening to server-wide notifications
+        - one for listening to incoming messages
+        - add listener to keyboard typing event to send to recipient's web window (`typing .....`) under their username.
+        - add logic for sending message (Backend API).
+        - emit notification for recipient's window for the recipient to see the message in real time.
+    
+3. When user logs out, 
+    - mark last_logout timestamp in the user record
+    - emit offline notification for the app-wide channel (so that everyone sees the user log out)
+    - recipient's window should also offline if the user's conversation is open.
+    
+4. When user selects a user from the frontend 
+    - subscribe to the recipient's socketio channel.
+    - Add null check for the message input.
+
