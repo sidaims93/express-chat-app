@@ -57,8 +57,29 @@ app.use(function(err, req, res, next) {
   res.json({'error': err.message});
 });
 
-app.listen(PORT, function () {
-    console.log("Server is running on port "+PORT);
+const server = require('http').createServer(app)
+
+const io = require('socket.io')(server, {
+  cors: { origin: "http://shopify_project.test" } 
+});
+
+io.on('connection', (socket) => {
+  //Assign the socket variable to WebSocket variable so we can use it the GET method
+  app.set('WebSocket', socket)
+  console.log('Socket IO connected!');
+  
+  socket.on('disconnect', (obj) => {
+    console.log('socket disconnected!');
+    socket.broadcast.emit('disconnected_'+obj.id, obj);
+  })
+  
+  socket.on('sendMessage', (obj) => {
+    socket.broadcast.emit('receiveMessage_'+obj.recipient_id, obj.message)
+  })
+})
+
+server.listen(PORT, function () {
+  console.log("Server is running on port "+PORT);
 });
 
 module.exports = app;

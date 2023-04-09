@@ -27,21 +27,11 @@ function checkNoAuth(req, res, next) {
   }
 }
 
-async function getChats(userId) {
-  return await new Promise((resolve, reject) => {
-    const sidebarQuery = `select distinct(recipient_id), u.email, u.id, u.name, u.avatar from chats c join users u on c.recipient_id = u.id where c.user_id = ?`;
-    const params = [userId];
-    database.query(sidebarQuery, params, (err, response) => {
-      if (err) {
-        return reject(err)
-      }
-      return resolve(response)
-    })
-  });
-}
-
 async function getSidebarUsers(userId) {
-  return await new Promise((resolve, reject) => {
+  
+  var returnVal = new Array();
+
+  var users = await new Promise((resolve, reject) => {
     const userQuery = `select * from users where id != ?`;
     const params = [userId];
     database.query(userQuery, params, (err, response) => {
@@ -51,25 +41,72 @@ async function getSidebarUsers(userId) {
       return resolve(response)
     });
   });
+
+  for(var i in users) {
+    returnVal[users[i].id] = users[i];
+  }
+
+  return returnVal;
 }
 
-async function getUserAccount(userId) {
-  return await new Promise((resolve, reject) => {
-    const userQuery = `select * from users where id = ?`;
-    const params = [userId];
-    database.query(userQuery, params, (err, response) => {
+async function getRecipientsForUser(userId) {
+  var recipients = new Array();
+  var uniqueRecipients = await new Promise((resolve, reject) => {
+    const query = `
+    SELECT 
+      r.id AS "recipient_id", 
+      r.avatar as "avatar", 
+      r.name AS "recipient_name", 
+      u.id AS "sender_id", 
+      u.name AS "sender_name",
+      r.last_login as "last_login",
+      r.last_logout as "last_logout"
+    FROM chats                                                                                          
+    JOIN users u ON u.id = chats.user_id                                                     
+    JOIN users r ON r.id = chats.recipient_id                                                
+    WHERE chats.user_id = ? OR chats.recipient_id = ?	                                         
+    GROUP BY chats.user_id, chats.recipient_id, chats.created_at ORDER BY chats.created_at desc;`;
+    
+    const params = [userId, userId];
+    database.query(query, params, (err, response) => {
       if (err) {
         return reject(err)
       }
       return resolve(response)
     });
   });
+
+  if(uniqueRecipients !== null && uniqueRecipients) {
+    for(var i in uniqueRecipients) {
+      recipients.push({
+        "id": uniqueRecipients[i].recipient_id,
+        "name": uniqueRecipients[i].recipient_name,
+        "avatar": uniqueRecipients[i].avatar,
+        "last_login": uniqueRecipients[i].last_login,
+        "last_logout": uniqueRecipients[i].last_logout
+      });
+    }
+  }
+  return recipients;
+}
+
+async function getUserAccount(userId) {
+  return await new Promise((resolve, reject) => {
+    const userQuery = `select * from users where id = ? limit 1`;
+    const params = [userId];
+    database.query(userQuery, params, (err, response) => {
+      if (err) {
+        return reject(err)
+      }
+      return resolve(response[0])
+    });
+  });
 }
 
 async function getChatHistory(userId, recipientId) {
   return await new Promise((resolve, reject) => {
-    const userQuery = `select * from chats where user_id = ? and recipient_id = ?`;
-    const params = [userId, recipientId];
+    const userQuery = `select * from chats where (user_id = ${userId} and recipient_id = ${recipientId}) OR (user_id = ${recipientId} and recipient_id = ${userId})`;
+    const params = [];
     database.query(userQuery, params, (err, response) => {
       if (err) {
         return reject(err)
@@ -81,8 +118,7 @@ async function getChatHistory(userId, recipientId) {
 
 /* GET home page. */
 router.get('/', checkAuth, async function(req, res) {
-  var result = new Array();
-  var usersArr = new Array();
+  var sidebar = new Array();
   var account = null;
   var recipientAccount = null;
   var chatHistory = null;
@@ -90,20 +126,22 @@ router.get('/', checkAuth, async function(req, res) {
     
   try {
     account = await getUserAccount(userId);
-    recipientAccount = await getUserAccount(account.last_message);
-    usersArr = await getSidebarUsers(userId);
     chatHistory = await getChatHistory(account.id, account.last_message);
+    sidebar = chatHistory !== null && chatHistory.length > 0 ? await getRecipientsForUser(userId) : await getSidebarUsers(userId);
+    recipientAccount = await getUserAccount(account.last_message);
   } catch(err) {
-    result = new Array();
-    usersArr = new Array();
+    sidebar = new Array();
     console.log(err.message);
   }
-  res.render(pagesPrefix + 'chat', {
-    'sidebar': result, 
-    'usersArr': usersArr,
+
+  const payload = {
+    'sidebar': sidebar,
     'chatHistory': chatHistory,
-    'recipientAccount': recipientAccount
-  });
+    'recipientAccount': recipientAccount,
+    'userAccount': account
+  }
+
+  res.render(pagesPrefix + 'chat', payload);
 });
 
 router.get('/start_chat/:id', checkAuth, async function (req, res) {
@@ -119,6 +157,16 @@ router.get('/start_chat/:id', checkAuth, async function (req, res) {
       return resolve(response)
     });
   });
+  var updateResult = await new Promise((resolve, reject) => {
+    const sqlQuery = `update users set last_message = ? where id = ?`;
+    const params = [recipient_id, user_id];
+    database.query(sqlQuery, params, (err, response) => {
+      if (err) {
+        return reject(err)
+      }
+      return resolve(response)
+    });
+  })
   res.redirect('/');
 });
 
