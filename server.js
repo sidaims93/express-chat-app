@@ -73,8 +73,14 @@ io.on('connection', (socket) => {
     socket.broadcast.emit('disconnected_'+obj.id, obj);
   })
   
-  socket.on('sendMessage', (obj) => {
-    socket.broadcast.emit('receiveMessage_'+obj.recipient_id, obj.message)
+  socket.on('ReceiveMessage', (obj) => {
+    console.log('receivemessage emitted');
+    socket.broadcast.emit('receiveMessage_'+obj.recipient_id, obj)
+  })
+
+  socket.on('Login', (obj) => {
+    console.log('Login event received');
+    socket.broadcast.emit('Login', obj);
   })
 })
 

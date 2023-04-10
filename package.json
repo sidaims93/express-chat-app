@@ -16,6 +16,7 @@
     "express": "^4.16.4",
     "express-session": "^1.17.3",
     "http-errors": "^1.6.3",
+    "mcache": "^0.4.0",
     "mongoose": "^7.0.3",
     "morgan": "~1.9.1",
     "mysql": "^2.18.1",

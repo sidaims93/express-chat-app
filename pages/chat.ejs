@@ -14,6 +14,7 @@
         <div class="row clearfix">
             <div class="col-lg-12">
                 <input type="hidden" value="<%= userAccount.id %>" name="user_id" id="user_id">
+                <input type="hidden" value="<%= recipientAccount.id %>" name="recipient_id" id="recipient_id">
                 <div class="card chat-app">
                     <% if (locals.sidebar && sidebar.length > 0) { %>
                     <div id="plist" class="people-list">
@@ -25,13 +26,13 @@
                         </div>
                         <ul class="list-unstyled chat-list mt-2 mb-0">
                             <% for(var i in sidebar) { %>
-                            <li class="clearfix">
-                                <img src="<%= sidebar[i].avatar %>" alt="avatar">
-                                <div class="about">
-                                    <div class="name"><%= sidebar[i].name %></div>
-                                    <div class="status"> <i class="fa fa-circle offline"></i></div>
-                                </div>
-                            </li>
+                                <li class="clearfix">
+                                    <img src="<%= sidebar[i].avatar %>" alt="avatar">
+                                    <div class="about user_about" data-avatar="<%= sidebar[i].avatar %>" data-userid="<%= sidebar[i].id %>">
+                                        <div class="name"><%= sidebar[i].name %></div>
+                                        <div class="status"> <i class="fa fa-circle offline"></i></div>
+                                    </div>
+                                </li>
                             <% } %>
                         </ul>
                     </div>
@@ -46,7 +47,7 @@
                                     </a>
                                     <div class="chat-about">
                                         <h6 class="m-b-0"><%= recipientAccount.name %></h6>
-                                        <small>Last seen: 2 hours ago</small>
+                                        <small class="time_since_logged_in">Last seen: 2 hours ago</small>
                                     </div>
                                 </div>
                                 <div class="col-lg-6 hidden-sm text-right">
@@ -58,7 +59,7 @@
                             </div>
                         </div>
                         <div class="chat-history">
-                            <ul class="m-b-0">
+                            <ul class="m-b-0" id="message-window">
                                 <% if(locals.chatHistory && chatHistory !== null) { %>
                                     <% for(var i in chatHistory) { %>
                                     <li class="clearfix">
@@ -152,38 +153,82 @@
             $('#send-button').click(function (e) {
                 e.preventDefault();
                 var text = $('#message-box').val();
+                var data = {
+                    message: text,
+                    recipient_id: $('#recipient_id').val(),
+                    avatar: '<%= userAccount.avatar %>'
+                }
                 if(text.length > 0) {
                     $.ajax({
                         type:"POST",
                         url: "/post/message",
                         async: false,
-                        data: {
-                            user_id: $('#user_id').val(),
-                            message: text
-                        },
+                        data: data,
                         success: function(response) {
                             console.log(response);
                         }
                     })
+
+                    socket.emit('ReceiveMessage', data);
+                    var html = `
+                        <li class="clearfix">
+                            <div class="message-data text-right">
+                                <span class="message-data-time">Now, Today</span>
+                                <img src="<%= userAccount.avatar %>" alt="avatar" />
+                            </div>
+                            <div class="message other-message float-right"> 
+                                ${text} 
+                            </div>
+                        </li>
+                    `;
+                    $('#message-window').append(html);
+                    $('#message-box').val('').focus();
+                    return true;
                 } else {
                     alert('Please enter text');
                 }
             });
-
-
         });
     </script>
     <script src="https://cdn.socket.io/4.0.1/socket.io.min.js?v=<%= Date.now() %>"></script>
     <script>
         let socket = io('http://localhost:3000');
 
-        console.log(socket);
-
         var user_id = document.getElementById('user_id').value;
+        
+        socket.emit('Login', {
+            "id": user_id
+        });
+
+        socket.on('Login', (data) => {
+            
+            if(data.id !== user_id) {
+                $('.user_about').each(function (obj) {
+                    var el = $('.chat-list').find(`[data-userid='${data.id}']`);
+                    el.find('.fa-circle').removeClass('offline').addClass('online');
+                })
+            }
+
+            var recipient_id = $('#recipient_id').val();
+            if(data.id == recipient_id) {
+                $('.time_since_logged_in').text('Online');
+            }
+        });
         //Listen Specifically for a user (user_id)
-        socket.on('receiveMessage_'+user_id, (message) => {
-            $('#main').prepend(`<br><span class="badge bg-primary pb-0 mb-4"><h6>`+message+`</h6></span>`);
-            console.log(message);
+        socket.on('receiveMessage_'+user_id, (data) => {
+            //$('#main').prepend(`<br><span class="badge bg-primary pb-0 mb-4"><h6>`+message+`</h6></span>`);
+            var html = `
+                <li class="clearfix">
+                    <div class="message-data">
+                        <img src="${data.avatar}" alt="avatar" />
+                        <span class="message-data-time">Now, Today</span>
+                    </div>
+                    <div class="message other-message"> 
+                        ${data.message} 
+                    </div>
+                </li>
+            `;
+            $('#message-window').append(html);
         });
     </script>
 

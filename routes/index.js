@@ -10,10 +10,6 @@ function checkAuth(req, res, next) {
   if(user_id != undefined) {
     next();
   } else {
-    console.log({
-      'status': false,
-      'message': 'Unauthenticated'
-    });
     res.redirect('/login');
   }
 }
@@ -50,23 +46,11 @@ async function getSidebarUsers(userId) {
 }
 
 async function getRecipientsForUser(userId) {
-  var recipients = new Array();
   var uniqueRecipients = await new Promise((resolve, reject) => {
-    const query = `
-    SELECT 
-      r.id AS "recipient_id", 
-      r.avatar as "avatar", 
-      r.name AS "recipient_name", 
-      u.id AS "sender_id", 
-      u.name AS "sender_name",
-      r.last_login as "last_login",
-      r.last_logout as "last_logout"
-    FROM chats                                                                                          
-    JOIN users u ON u.id = chats.user_id                                                     
-    JOIN users r ON r.id = chats.recipient_id                                                
-    WHERE chats.user_id = ? OR chats.recipient_id = ?	                                         
-    GROUP BY chats.user_id, chats.recipient_id, chats.created_at ORDER BY chats.created_at desc;`;
-    
+    const query = `	
+      SELECT DISTINCT user_id, recipient_id FROM chats
+      WHERE chats.user_id = ? OR chats.recipient_id = ? 
+    `;
     const params = [userId, userId];
     database.query(query, params, (err, response) => {
       if (err) {
@@ -76,18 +60,24 @@ async function getRecipientsForUser(userId) {
     });
   });
 
+  var userIds = new Array();
   if(uniqueRecipients !== null && uniqueRecipients) {
     for(var i in uniqueRecipients) {
-      recipients.push({
-        "id": uniqueRecipients[i].recipient_id,
-        "name": uniqueRecipients[i].recipient_name,
-        "avatar": uniqueRecipients[i].avatar,
-        "last_login": uniqueRecipients[i].last_login,
-        "last_logout": uniqueRecipients[i].last_logout
-      });
+      if(uniqueRecipients[i].user_id !== userId)
+        userIds.push(uniqueRecipients[i].user_id);
+      if(uniqueRecipients[i].recipient_id !== userId)
+        userIds.push(uniqueRecipients[i].recipient_id);
     }
   }
-  return recipients;
+
+  return await new Promise((resolve, reject) => {
+    const query = 'SELECT * from users where id <> '+userId+' AND id in ('+userIds+')';
+    const params = [];
+    database.query(query, params, (err, response) => {
+      if(err) reject(err);
+      return resolve(response);
+    })
+  });
 }
 
 async function getUserAccount(userId) {
@@ -141,7 +131,63 @@ router.get('/', checkAuth, async function(req, res) {
     'userAccount': account
   }
 
+  //console.log(payload);
+
   res.render(pagesPrefix + 'chat', payload);
+});
+
+async function updateUsersTableForMessage(user_id, recipient_id) {
+  const query = 'UPDATE users SET last_message = ? where id = ?';
+    
+  await new Promise((resolve, reject) => {
+    const params = [recipient_id, user_id];
+    database.query(query, params, (err, response) => {
+      if(err) return reject(err);
+      return resolve(response);
+    });
+  })
+
+  await new Promise((resolve, reject) => {
+    const params = [user_id, recipient_id];
+    database.query(query, params, (err, response) => {
+      if(err) return reject(err);
+      return resolve(response);
+    });
+  });
+
+  return true;
+}
+
+router.post('/post/message', checkAuth, async(req, res) => {
+  try {
+    var returnResp
+    var body = req.body;
+    if(body.message) {
+      var socket = req.app.get('WebSocket');
+      var user_id = req.session.user_id;
+      var recipient_id = body.recipient_id;
+      var obj = [user_id, recipient_id, body.message];
+      await new Promise((resolve, reject) => {
+        const saveMessageQuery = `insert into chats (user_id, recipient_id, message) VALUES (?,?,?);`;
+        const saveParams = obj;
+        database.query(saveMessageQuery, saveParams, (err, response) => {
+          if (err) {
+            return reject(err)
+          }
+          return resolve(response)
+        });
+      });
+      socket.broadcast.emit('ReceiveMessage', obj);
+      await updateUsersTableForMessage(user_id, recipient_id);
+      returnResp = {'status': true, 'message': 'Broadcast success'}
+    } else {
+      returnResp = {'status': false, 'message': 'Invalid Request'}
+    }
+    return res.json(returnResp).status(200)  
+  } catch (error) {
+    console.trace(error);
+    console.log(error.message);  
+  }
 });
 
 router.get('/start_chat/:id', checkAuth, async function (req, res) {
@@ -174,27 +220,56 @@ router.get('/login', checkNoAuth, function (req, res) {
   res.render(pagesPrefix + 'login');
 });
 
-router.post('/login', checkNoAuth, function(req, res) {
+router.post('/login', checkNoAuth, async function(req, res) {
   var email = req.body.email;
   var password = req.body.password;
+  var loginResponse = null;
   if(email && password) { 
-    query = `SELECT * FROM users WHERE email = "${email}"`;
-    database.query(query, function(error, data){
-      if(data !== null && data != undefined && data.length > 0) {
-        for(var count = 0; count < data.length; count++) {
-          if(data[count].password == password) {
-            req.session.user_id = data[count].id;
-            req.session.save();
-            res.redirect("/");
+    const result = await new Promise((resolve, reject) => {
+      const query = `SELECT * FROM users WHERE email = ?`;
+      const params = [email];
+      database.query(query, params, (err, response) => {
+        if(err) return reject(err);
+        if(response !== null && response.length) {
+          if(response[0].password == password) {
+            loginResponse = {
+              "status": true,
+              "message": "loggedIn",
+              "userRecord": response[0]
+            }
           } else {
-            res.send('Incorrect Password');
+            loginResponse = {
+              "status": false,
+              "message": "wrong password"
+            }
+          }
+        } else {
+          loginResponse = {
+            "status": false,
+            "message": "invalid creds"
           }
         }
-      } else {
-        res.send('Incorrect Email Address');
-      }
-      res.end();
-    });
+        return resolve(loginResponse);
+      });
+    })
+
+
+    if(result.status && result.status !== false) {
+      await new Promise((resolve, reject) => {
+        const query = "UPDATE users set last_login = ? where id = ?";
+        const params = [new Date(), result.userRecord.id];
+        database.query(query, params, (err, response) => {
+          if(err) return reject(err);
+          return resolve(response);
+        })
+      });
+
+      req.session.user_id = result.userRecord.id;
+      req.session.save();
+      return res.redirect("/");
+    } else {
+      return res.json(result);
+    }
   } else {
     res.send('Please Enter Email Address and Password Details');
     res.end();
