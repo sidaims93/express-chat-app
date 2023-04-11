@@ -60,7 +60,7 @@ app.use(function(err, req, res, next) {
 const server = require('http').createServer(app)
 
 const io = require('socket.io')(server, {
-  cors: { origin: "http://shopify_project.test" } 
+  cors: { origin: "http://localhost:3000" } 
 });
 
 io.on('connection', (socket) => {
