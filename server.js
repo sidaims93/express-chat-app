@@ -64,7 +64,7 @@ const io = require('socket.io')(server, {
 });
 
 io.on('connection', (socket) => {
-  //Assign the socket variable to WebSocket variable so we can use it the GET method
+  
   app.set('WebSocket', socket)
   console.log('Socket IO connected!');
   
