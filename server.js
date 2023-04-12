@@ -26,14 +26,14 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
-    secret : 'somethingverylargeastringthatcannotbeguessed',
-    resave : true,
-    cookie: {
-        maxAge: 36000000,
-        httpOnly: false, // <- set httpOnly to false
-        secure: false
-    },
-    saveUninitialized : true
+  secret : 'somethingverylargeastringthatcannotbeguessed',
+  resave : true,
+  cookie: {
+    maxAge: 36000000,
+    httpOnly: false, // <- set httpOnly to false
+    secure: false
+  },
+  saveUninitialized : true
 }));
 
 app.use('/', indexRouter);
