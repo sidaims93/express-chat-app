@@ -8,12 +8,37 @@ var session = require('express-session');
 
 const PORT = 3000;
 
+// Init Redis
+const Redis = require('ioredis');
+const redis = new Redis({
+  host: "localhost",
+  port: 6379,
+  enableOfflineQueue: true
+});
+redis.on('error', err => console.error(err));
+
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var apiRouter = require('./routes/api');
 
 var app = express();
+const ServerRateLimit = require('./rate-limiters/SendMessageRateLimit');
 
+const CookieVar = session({
+  secret : 'somethingverylargeastringthatcannotbeguessed',
+  resave : true,
+  cookie: {
+    maxAge: 36000000,
+    httpOnly: false, // <- set httpOnly to false
+    secure: false
+  },
+  saveUninitialized : true
+});
+
+app.use([
+  CookieVar,
+  ServerRateLimit
+]);
 // view engine setup
 app.set('views', path.join(__dirname, 'pages'));
 //setting view engine to ejs
@@ -24,17 +49,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-
-app.use(session({
-  secret : 'somethingverylargeastringthatcannotbeguessed',
-  resave : true,
-  cookie: {
-    maxAge: 36000000,
-    httpOnly: false, // <- set httpOnly to false
-    secure: false
-  },
-  saveUninitialized : true
-}));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);

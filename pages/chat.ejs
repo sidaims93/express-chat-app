@@ -14,7 +14,9 @@
         <div class="row clearfix">
             <div class="col-lg-12">
                 <input type="hidden" value="<%= userAccount.id %>" name="user_id" id="user_id">
-                <input type="hidden" value="<%= recipientAccount.id %>" name="recipient_id" id="recipient_id">
+                <% if(locals.recipientAccount) { %>
+                    <input type="hidden" value="<%= recipientAccount.id %>" name="recipient_id" id="recipient_id">
+                <% } %>
                 <div class="card chat-app">
                     <% if (locals.sidebar && sidebar.length > 0) { %>
                     <div id="plist" class="people-list">
