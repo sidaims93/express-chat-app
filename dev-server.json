@@ -1,0 +1,11 @@
+{
+    "apps": [{
+      "name": "chat-app",
+      "script": "server.js",
+      "watch": true,
+      "instances": 1,
+      "env": {
+        "NODE_ENV": "dev"
+      }
+    }]
+}
