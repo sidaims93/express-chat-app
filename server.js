@@ -8,6 +8,8 @@ var session = require('express-session');
 
 const PORT = 3000;
 
+const database = require('./database');
+
 // Init Redis
 const Redis = require('ioredis');
 const redis = new Redis({
@@ -17,12 +19,12 @@ const redis = new Redis({
 });
 redis.on('error', err => console.error(err));
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
-var apiRouter = require('./routes/api');
+var indexRouter = require('./routes/index')(database, redis);
+var usersRouter = require('./routes/users')(database, redis);
+//var apiRouter = require('./routes/api');
 
 var app = express();
-const ServerRateLimit = require('./rate-limiters/SendMessageRateLimit');
+const ServerRateLimit = require('./rate-limiters/ServerRateLimit');
 
 const CookieVar = session({
   secret : 'somethingverylargeastringthatcannotbeguessed',
@@ -52,7 +54,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use('/api', apiRouter);
+//app.use('/api', apiRouter);
 
 
 // catch 404 and forward to error handler
